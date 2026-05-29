@@ -30,10 +30,9 @@ def transcribe():
         return jsonify({"error": "유튜브 URL을 확인해주세요"}), 400
 
     try:
-        transcript = YouTubeTranscriptApi.get_transcript(
-            video_id, languages=["ko", "en"]
-        )
-        text = " ".join([t["text"] for t in transcript])
+        ytt = YouTubeTranscriptApi()
+        transcript = ytt.fetch(video_id, languages=["ko", "en"])
+        text = " ".join([t.text for t in transcript])
         return jsonify({"text": text})
     except Exception as e:
         return jsonify({"error": f"자막을 찾을 수 없어요: {str(e)}"}), 500
