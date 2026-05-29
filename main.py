@@ -18,29 +18,32 @@ def transcribe():
         return jsonify({"error": "URL이 필요합니다"}), 400
 
     with tempfile.TemporaryDirectory() as tmp:
-        out = os.path.join(tmp, "audio.%(ext)s")
+        out = os.path.join(tmp, "audio")
         opts = {
-            "format": "bestaudio/best",
-            "outtmpl": out,
-            "postprocessors": [{
-                "key": "FFmpegExtractAudio",
-                "preferredcodec": "mp3",
-                "preferredquality": "64",
-            }],
+            "format": "bestaudio[ext=m4a]/bestaudio[ext=webm]/bestaudio",
+            "outtmpl": out + ".%(ext)s",
+            "postprocessors": [],
             "quiet": True,
+            "no_warnings": True,
         }
         with yt_dlp.YoutubeDL(opts) as ydl:
-            ydl.download([url])
+            info = ydl.extract_info(url, download=True)
+            ext = info.get("ext", "webm")
 
-        mp3 = os.path.join(tmp, "audio.mp3")
-        with open(mp3, "rb") as f:
+        audio_file = out + "." + ext
+
+        with open(audio_file, "rb") as f:
             resp = requests.post(
                 "https://api.groq.com/openai/v1/audio/transcriptions",
                 headers={"Authorization": f"Bearer {GROQ_KEY}"},
-                files={"file": ("audio.mp3", f, "audio/mpeg")},
+                files={"file": (f"audio.{ext}", f, "audio/webm")},
                 data={"model": "whisper-large-v3", "language": "ko"},
             )
-        return jsonify({"text": resp.json().get("text", "")})
+
+        result = resp.json()
+        if "text" not in result:
+            return jsonify({"error": str(result)}), 500
+        return jsonify({"text": result["text"]})
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=10000)
